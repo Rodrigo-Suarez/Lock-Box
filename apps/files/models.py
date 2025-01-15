@@ -2,7 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from google.cloud import storage
 from django.conf import settings
-
+from rest_framework.response import Response
+from rest_framework import status
 
 class Folder(models.Model):
     name = models.CharField(255, default="new_folder")
@@ -33,6 +34,21 @@ class File(models.Model):
     @staticmethod
     def generate_url(unique_filename):
         return f"gs://{settings.GS_BUCKET_NAME}/{unique_filename}"
+
+
+    @staticmethod
+    def generate_unique_name(user_id, filename, replace_existing):
+        unique_name = f"{user_id}_{filename}"
+
+        if not replace_existing:
+            name, extension = unique_name.split(".")
+            counter = 1
+
+            while File.objects.filter(unique_name=unique_name).exists():
+                unique_name = f"{name}({counter}){extension}"
+                counter += 1
+
+        return unique_name
 
 
     def __str__(self):

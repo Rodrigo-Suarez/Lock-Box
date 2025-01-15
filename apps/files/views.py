@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from utils.gcs_service import GCSService
-import .utils import 
+from .utils.unique_filename_generator import unique_filename_generator
 
 
 class UploadFileView(APIView):
@@ -14,7 +14,30 @@ class UploadFileView(APIView):
             return Response({"detail": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
         
         file = request.FILES['file']  #Obtener el archivo de la solicitud
-        unique_filename =
+
+        unique_filename = File.generate_unique_name(request.user.id, file.name, replace_existing=True)
+        
+        if File.objects.filter(unique_name=unique_filename).exists():
+            if not request.data.get("existing", False):
+                return Response(
+                        {
+                            "detail": "File already exists.",
+                            "unique_name": unique_filename,
+                            "action_required": "confirm",
+                            "message": "Do you want to replace the file or save a new version?"
+                        },
+                        status=status.HTTP_409_CONFLICT
+                    )
+            
+            if not request.data.get("replace_existing", True):
+                unique_filename = File.generate_unique_name(request.user.id, file.name, replace_existing=False)
+
+        return self._save_file(request, file, unique_filename)
+
+        
+
+    def _save_file(self, request, file, unique_filename):
+
         data = {
             "name": file.name,
             "unique_name": unique_filename,
