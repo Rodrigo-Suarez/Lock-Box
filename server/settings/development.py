@@ -20,3 +20,12 @@ DATABASES = {
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] += (
     'rest_framework.renderers.BrowsableAPIRenderer',
 )
+
+
+#TOKEN
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=50),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}

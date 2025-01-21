@@ -1,77 +1,91 @@
 from rest_framework.views import APIView
-from .serializers import FolderSerializer, FileSerializer
-from .models import Folder, File
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from rest_framework import status
-from rest_framework.permissions import AllowAny
-from utils.gcs_service import GCSService
-from .utils.unique_filename_generator import unique_filename_generator
+from .services.file_service import FileService
+from .services.folder_service import FolderService
+from .models import File, Folder
+from .serializers import FileSerializer, FolderSerializer
 
 
-class UploadFileView(APIView):
-    def post(self, request, *args, **kwargs):
-        if 'file' not in request.FILES:
+
+class RootView(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            folders = FolderService.get_root_folders(request.user.id)
+            files = FileService.get_root_files(request.user.id)
+            return Response(folders["data"] + files["data"], status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"detail": "Error al obtener archivos y carpetas", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FileViewSet(ModelViewSet):
+    queryset = File.objects.all()
+    serializer_class = FileSerializer
+
+    def create(self, request, *args, **kwargs):
+        file = request.FILES['file'] 
+
+        if not file:
             return Response({"detail": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        file = request.FILES['file']  #Obtener el archivo de la solicitud
 
-        unique_filename = File.generate_unique_name(request.user.id, file.name, replace_existing=True)
-        
-        if File.objects.filter(unique_name=unique_filename).exists():
-            if not request.data.get("existing", False):
-                return Response(
-                        {
-                            "detail": "File already exists.",
-                            "unique_name": unique_filename,
-                            "action_required": "confirm",
-                            "message": "Do you want to replace the file or save a new version?"
-                        },
-                        status=status.HTTP_409_CONFLICT
-                    )
-            
-            if not request.data.get("replace_existing", True):
-                unique_filename = File.generate_unique_name(request.user.id, file.name, replace_existing=False)
+        response = FileService.process_upload(
+            user_id = request.user.id,
+            file = file,
+            existing = request.data.get("existing", False),
+            replace_existing = request.data.get("replace_existing", True),
+            folder = request.data.get("folder", None)
+        )
 
-        return self._save_file(request, file, unique_filename)
+        return Response(response["data"], response["status"])
 
-        
 
-    def _save_file(self, request, file, unique_filename):
+    @action(methods=["patch"], detail=True, url_name="rename")
+    def rename(self, request, pk):
+        response = FileService.rename(
+            file_id = pk,
+            user_id = request.user.id,
+            new_name = request.data.get("name")
+        )
 
-        data = {
-            "name": file.name,
-            "unique_name": unique_filename,
-            "type": file.content_type,
-            "author": request.user.id,
-            #"folder": ,
-            "content": File.generate_url(unique_filename),
-            "size": file.size,
-            #"version": 
-        }
-        
-        serializer = FileSerializer(data=data)
-        
-        if serializer.is_valid():
-            
-            try:
-                GCSService.upload(unique_filename, file) #Guardar en GCS
-                file_instance = serializer.save() #Guardar en la base de datos
-                return Response(FileSerializer(file_instance).data, status=status.HTTP_201_CREATED)
-            
-            except Exception as e:
-                GCSService.delete(unique_filename)
-                return Response({"detail": "Failed to upload to GCS or save in database", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(response["data"], response["status"])
     
 
+    @action(methods=["patch"], detail=True, url_name="relocate")
+    def relocate(self, request, pk):
+        response = FileService.relocate(
+            file_id = pk,
+            user_id = request.user.id,
+            new_folder = request.data.get("folder")
+        )
 
+        return Response(response["data"], response["status"])
+
+        
+
+class FolderViewSet(ModelViewSet):
+    queryset = Folder.objects.all()
+    serializer_class = FolderSerializer
+
+
+    def create(self, request, *args, **kwargs):  
+        response = FolderService.create_folder(
+            name = request.data.get("name", "new_folder"),
+            user_id = request.user.id,
+            parent_folder = request.data.get("parent_folder", None)
+        )
+        
+        return Response(response["data"], response["status"])
     
-
-
-
-
-
-
     
- 
+    def retrieve(self, request, *args, **kwargs):
+        response = FolderService.get_folder(
+            folder_id = kwargs.get("pk"),
+            user_id = request.user.id
+        )
+
+        return Response(response["data"], response["status"])
+    
+        

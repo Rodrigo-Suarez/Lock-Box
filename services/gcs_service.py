@@ -1,7 +1,6 @@
 from google.cloud import storage
 from django.conf import settings
-from rest_framework.response import Response
-from rest_framework import status
+
 
 class GCSService:
     
@@ -25,5 +24,22 @@ class GCSService:
             blob = bucket.blob(unique_filename)
             blob.delete()  
 
+        except Exception as e:
+            raise RuntimeError(f"Failed to upload to GCS: {str(e)}")
+        
+    
+    @staticmethod
+    def rename(old_unique_name, new_unique_name):
+        try:
+            client = storage.Client(credentials=settings.GS_CREDENTIALS)
+            bucket = client.bucket(settings.GS_BUCKET_NAME)
+            blob = bucket.blob(old_unique_name)
+            
+            # Copiar el archivo al nuevo nombre
+            bucket.copy_blob(blob, bucket, new_unique_name)
+            
+            # Eliminar el archivo original
+            blob.delete()
+        
         except Exception as e:
             raise RuntimeError(f"Failed to upload to GCS: {str(e)}")
