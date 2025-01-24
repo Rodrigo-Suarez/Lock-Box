@@ -2,7 +2,7 @@ from apps.files.models import File
 
 def generate_file_data(file, user_id, unique_filename, folder):
     data = {
-            "name": file.name,
+            "name": File.generate_name(unique_filename),
             "unique_name": unique_filename,
             "type": file.content_type,
             "author": user_id,

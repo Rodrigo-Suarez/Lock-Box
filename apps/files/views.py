@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from rest_framework.decorators import action
 from rest_framework import status
 from .services.file_service import FileService
 from .services.folder_service import FolderService
@@ -19,6 +18,7 @@ class RootView(APIView):
 
         except Exception as e:
             return Response({"detail": "Error al obtener archivos y carpetas", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class FileViewSet(ModelViewSet):
@@ -42,39 +42,38 @@ class FileViewSet(ModelViewSet):
         return Response(response["data"], response["status"])
 
 
-    @action(methods=["patch"], detail=True, url_name="rename")
-    def rename(self, request, pk):
-        response = FileService.rename(
-            file_id = pk,
-            user_id = request.user.id,
-            new_name = request.data.get("name")
-        )
+    
+    def partial_update(self, request, pk):
+        new_name = request.data.get("name")
+        new_folder = request.data.get("folder")
+        change = request.data.get("change", False)
+        response = []
 
-        return Response(response["data"], response["status"])
+        if new_name:
+            updated_file_name = FileService.rename(pk, request.user.id, new_name, change)
+            response.append(updated_file_name["data"])
+
+        if new_folder:
+            if new_folder == "root":
+                new_folder = None
+            updated_file_folder = FileService.relocate(pk, request.user.id, new_folder, change)
+            response.append(updated_file_folder["data"])
+
+        return Response(response, status.HTTP_201_CREATED)
     
 
-    @action(methods=["patch"], detail=True, url_name="relocate")
-    def relocate(self, request, pk):
-        response = FileService.relocate(
-            file_id = pk,
-            user_id = request.user.id,
-            new_folder = request.data.get("folder")
-        )
-
-        return Response(response["data"], response["status"])
-
-        
 
 class FolderViewSet(ModelViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
 
-
+    #Modificar para que no se puedan crear carpetas con el mismo nombre
     def create(self, request, *args, **kwargs):  
         response = FolderService.create_folder(
             name = request.data.get("name", "new_folder"),
             user_id = request.user.id,
-            parent_folder = request.data.get("parent_folder", None)
+            parent_folder = request.data.get("parent_folder", None),
+            change = request.data.get("change", False)
         )
         
         return Response(response["data"], response["status"])
@@ -88,4 +87,25 @@ class FolderViewSet(ModelViewSet):
 
         return Response(response["data"], response["status"])
     
+
+    #Implementar logica para mover carpetas. Una carpeta no puede ser movida dentro de una de sus subcarpetas. new_folder != folder.subfolders
+    def partial_update(self, request, pk):
+        new_name = request.data.get("name")
+        new_parent = request.data.get("parent")
+        change = request.data.get("change", False)
+        response = []
+
+        if new_name:
+            updated_folder_name = FolderService.rename(pk, request.user.id, new_name, change)
+            response.append(updated_folder_name["data"])
+
+        #Falta este
+        if new_parent:
+            change = request.data.get("change", False)
+            if new_folder == "root":
+                new_folder = None
+            updated_folder_parent = FolderService.relocate(pk, request.user.id, new_folder, change)
+            response.append(updated_folder_parent["data"])
+
+        return Response(response, status.HTTP_201_CREATED)
         

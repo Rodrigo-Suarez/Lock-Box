@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from services.gcs_service import GCSService
+import re
 
 
 class Folder(models.Model):
@@ -18,6 +19,24 @@ class Folder(models.Model):
             file.delete()
 
         super().delete(*args, **kwargs)
+
+
+    @staticmethod
+    def generate_name(name, user_id, parent_id):
+        counter = 1
+        base_name = name
+
+        # Verifica si el nombre ya tiene un sufijo numérico al final
+        match = re.search(r"^(.*)\((\d+)\)$", name)
+        if match:
+            base_name = match.group(1).strip()  # Parte del nombre sin el sufijo
+            counter = int(match.group(2)) + 1   # Incrementa el contador desde el número existente
+
+        while Folder.objects.filter(name=name, author=user_id, parent_folder=parent_id).exists():
+            name = f"{base_name}({counter})"
+            counter += 1
+
+        return name
 
 
     def __str__(self):
@@ -61,10 +80,16 @@ class File(models.Model):
             counter = 1
 
             while File.objects.filter(unique_name=unique_name).exists():
-                unique_name = f"{name}({counter}){extension}"
+                unique_name = f"{name}({counter}).{extension}"
                 counter += 1
 
         return unique_name
+    
+    @staticmethod
+    def generate_name(unique_name):
+        user_id, folder_id, name = unique_name.split("_")
+        return name
+
 
 
     def __str__(self):

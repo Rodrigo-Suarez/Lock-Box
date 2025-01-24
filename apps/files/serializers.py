@@ -13,6 +13,7 @@ class FolderSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
 class FileSerializer(serializers.ModelSerializer):
     name = serializers.CharField(min_length=1, required=True)
     author = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=True)
@@ -21,6 +22,7 @@ class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         fields = '__all__'
+
         
 
 class FileHistorySerializer(serializers.ModelSerializer):

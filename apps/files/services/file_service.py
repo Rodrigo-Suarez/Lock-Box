@@ -5,6 +5,7 @@ from apps.files.models import FileHistory, File
 from rest_framework import status
 from services.gcs_service import GCSService
 from django.db import transaction
+from rest_framework.exceptions import ValidationError
 
 
 
@@ -89,53 +90,81 @@ class FileService():
         
     
     @staticmethod
-    def rename(file_id, user_id, new_name):
+    def process_patch(name, user_id, folder_id, change):
+        file_db = File.objects.filter(name=name, author=user_id, folder=folder_id).first()
+        new_unique_name = File.generate_unique_name(user_id, name, folder_id, replace_existing=False)
+
+        if file_db and change == False:
+            raise ValidationError({
+                    "data":{
+                        "detail": "File already exists.",
+                        "unique_name": file_db.name,
+                        "action_required": "confirm",
+                        "message": f"Do you want to cancel the operation or save the file as: {File.generate_name(new_unique_name)}?"
+                        }
+                })
+        
+        return new_unique_name
+            
+        
+
+    @staticmethod
+    def rename(file_id, user_id, new_name, change):
         file = File.objects.filter(id=file_id, author=user_id).first()
 
         if file:
             if file.name == new_name or not new_name:
-                return {"data": "choose another name", "status":status.HTTP_400_BAD_REQUEST}
+                return {"data": "choose another name"}
+        
+            if not file.folder:
+                folder_id = None
+            else:
+                folder_id = file.folder.id
             
+            new_unique_name = FileService.process_patch(new_name, user_id, folder_id, change)
+                
             with transaction.atomic():
                 try:
-                    new_unique_name = File.generate_unique_name(user_id, new_name, file.folder.id, replace_existing=True)
                     GCSService.rename(file.unique_name, new_unique_name)
-                    file.name = new_name
+                    file.name = File.generate_name(new_unique_name)
                     file.unique_name = new_unique_name
                     file.content = File.generate_url(new_unique_name)
                     file.save()
                     serializer = FileSerializer(file)
-                    return {"data": serializer.data, "status": status.HTTP_201_CREATED}
-
+                    return {"data": serializer.data}
+                
                 except Exception as e:
                     GCSService.rename(new_unique_name, file.unique_name)
                     raise RuntimeError({"detail":"file error" ,"error": str(e)})
                 
-        return {"data": "file not found", "status":status.HTTP_404_NOT_FOUND}
+        return {"data": "file not found"}
+        
     
 
     @staticmethod
-    def relocate(file_id, user_id, new_folder):
+    def relocate(file_id, user_id, new_folder, change):
         file = File.objects.filter(id=file_id, author=user_id).first()
+ 
         if file:
             folder = Folder.objects.filter(id=new_folder, author=user_id).first()
-
             if file.folder == folder:
-                return {"data": "choose another folder", "status":status.HTTP_400_BAD_REQUEST}
+                return {"data": "choose another folder"}
+            
+            new_unique_name = FileService.process_patch(file.name, user_id, folder.id, change)
 
             with transaction.atomic():
                 try:
-                    new_unique_name = File.generate_unique_name(user_id, file.name, new_folder, replace_existing=True)
                     GCSService.rename(file.unique_name, new_unique_name)
+                    file.name = File.generate_name(new_unique_name)
                     file.folder = folder
                     file.unique_name = new_unique_name
                     file.content = File.generate_url(new_unique_name)
                     file.save()
                     serializer = FileSerializer(file)
-                    return {"data": serializer.data, "status": status.HTTP_201_CREATED}
+                    return {"data": serializer.data}
                 
                 except Exception as e:
                     GCSService.rename(new_unique_name, file.unique_name)
                     raise RuntimeError({"detail":"file error" ,"error": str(e)})
 
-        return {"data": "file not found", "status":status.HTTP_404_NOT_FOUND}
+        return {"data": "file not found"}
