@@ -54,8 +54,6 @@ class FileViewSet(ModelViewSet):
             response.append(updated_file_name["data"])
 
         if new_folder:
-            if new_folder == "root":
-                new_folder = None
             updated_file_folder = FileService.relocate(pk, request.user.id, new_folder, change)
             response.append(updated_file_folder["data"])
 
@@ -67,7 +65,6 @@ class FolderViewSet(ModelViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
 
-    #Modificar para que no se puedan crear carpetas con el mismo nombre
     def create(self, request, *args, **kwargs):  
         response = FolderService.create_folder(
             name = request.data.get("name", "new_folder"),
@@ -88,7 +85,6 @@ class FolderViewSet(ModelViewSet):
         return Response(response["data"], response["status"])
     
 
-    #Implementar logica para mover carpetas. Una carpeta no puede ser movida dentro de una de sus subcarpetas. new_folder != folder.subfolders
     def partial_update(self, request, pk):
         new_name = request.data.get("name")
         new_parent = request.data.get("parent")
@@ -99,12 +95,8 @@ class FolderViewSet(ModelViewSet):
             updated_folder_name = FolderService.rename(pk, request.user.id, new_name, change)
             response.append(updated_folder_name["data"])
 
-        #Falta este
         if new_parent:
-            change = request.data.get("change", False)
-            if new_folder == "root":
-                new_folder = None
-            updated_folder_parent = FolderService.relocate(pk, request.user.id, new_folder, change)
+            updated_folder_parent = FolderService.relocate(pk, request.user.id, new_parent, change)
             response.append(updated_folder_parent["data"])
 
         return Response(response, status.HTTP_201_CREATED)

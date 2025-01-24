@@ -64,6 +64,17 @@ class FolderService():
                 })
         
         return new_unique_name
+    
+
+    @staticmethod
+    def get_subfolder_ids(folder):
+        subfolders = folder.sub_folders.all()
+        ids = [subfolder.id for subfolder in subfolders]
+
+        for subfolder in subfolders:
+            ids.extend(FolderService.get_subfolder_ids(subfolder))
+
+        return ids
 
 
 
@@ -92,6 +103,49 @@ class FolderService():
                 except Exception as e:
                     raise RuntimeError({"detail":"folder error" ,"error": str(e)})
 
+        return {"data": "folder not found"}
+    
+
+    @staticmethod
+    def relocate(folder_id, user_id, new_parent, change):
+        folder = Folder.objects.filter(id=folder_id, author=user_id).first()
+
+        if folder:
+            if not new_parent == "root":
+                new_parent = Folder.objects.filter(id=new_parent, author=user_id).first()
+
+                if not new_parent:
+                    return {"data": "folder not found"}
+                if folder.id == new_parent:
+                    return {"data": "choose another location"}
+                
+                subfolder_ids = FolderService.get_subfolder_ids(folder)
+
+                if new_parent.id in subfolder_ids:
+                    raise ValidationError("No puedes mover un folder dentro de sus propios subfolders.")
+                
+                folder_name = FolderService.process_patch(folder.name, user_id, new_parent.id, change)
+                
+                
+            else:
+                new_parent = None
+
+                if folder.parent_folder == new_parent:
+                    return {"data": "choose another location"}
+                
+                folder_name = FolderService.process_patch(folder.name, user_id, new_parent, change)
+
+        
+            with transaction.atomic():
+                try:
+                    folder.name = folder_name
+                    folder.parent_folder = new_parent
+                    folder.save()
+                    serializer = FolderSerializer(folder)
+                    return {"data": serializer.data}
+                
+                except Exception as e:
+                    raise RuntimeError({"detail":"folder error" ,"error": str(e)})
 
         return {"data": "folder not found"}
 

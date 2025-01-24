@@ -146,17 +146,29 @@ class FileService():
         file = File.objects.filter(id=file_id, author=user_id).first()
  
         if file:
-            folder = Folder.objects.filter(id=new_folder, author=user_id).first()
-            if file.folder == folder:
-                return {"data": "choose another folder"}
-            
-            new_unique_name = FileService.process_patch(file.name, user_id, folder.id, change)
+            if not new_folder == "root":
+                new_folder = Folder.objects.filter(id=new_folder, author=user_id).first()
+
+                if not new_folder:
+                    return {"data": "folder not found"}
+                if file.folder == new_folder:
+                    return {"data": "choose another folder"}
+                
+                new_unique_name = FileService.process_patch(file.name, user_id, new_folder.id, change)
+                
+            else:
+                new_folder = None
+
+                if file.folder == new_folder:
+                    return {"data": "choose another folder"}
+                
+                new_unique_name = FileService.process_patch(file.name, user_id, new_folder, change)
 
             with transaction.atomic():
                 try:
                     GCSService.rename(file.unique_name, new_unique_name)
                     file.name = File.generate_name(new_unique_name)
-                    file.folder = folder
+                    file.folder = new_folder
                     file.unique_name = new_unique_name
                     file.content = File.generate_url(new_unique_name)
                     file.save()
