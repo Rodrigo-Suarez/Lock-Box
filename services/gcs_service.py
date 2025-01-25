@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from google.cloud import storage
 from django.conf import settings
 
@@ -43,3 +44,17 @@ class GCSService:
         
         except Exception as e:
             raise RuntimeError(f"Failed to upload to GCS: {str(e)}")
+        
+        
+    @staticmethod
+    def generate_signed_url(unique_name):
+        try:
+            client = storage.Client(credentials=settings.GS_CREDENTIALS)
+            bucket = client.bucket(settings.GS_BUCKET_NAME)
+            blob = bucket.blob(unique_name)
+            expiration_time = timedelta(minutes=5)
+            url = blob.generate_signed_url(expiration=datetime.now(timezone.utc) + expiration_time, version="v4")
+            return url
+    
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate url to GCS: {str(e)}")

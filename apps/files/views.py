@@ -25,6 +25,11 @@ class FileViewSet(ModelViewSet):
     queryset = File.objects.all()
     serializer_class = FileSerializer
 
+    def retrieve(self, request, pk):
+        response = FileService.get_signed_url(pk, request.user.id)
+        return Response(response["data"], response["status"])
+        
+
     def create(self, request, *args, **kwargs):
         file = request.FILES['file'] 
 
@@ -76,12 +81,8 @@ class FolderViewSet(ModelViewSet):
         return Response(response["data"], response["status"])
     
     
-    def retrieve(self, request, *args, **kwargs):
-        response = FolderService.get_folder(
-            folder_id = kwargs.get("pk"),
-            user_id = request.user.id
-        )
-
+    def retrieve(self, request, pk):
+        response = FolderService.get_folder(pk, request.user.id)
         return Response(response["data"], response["status"])
     
 

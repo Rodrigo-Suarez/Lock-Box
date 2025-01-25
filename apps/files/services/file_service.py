@@ -180,3 +180,11 @@ class FileService():
                     raise RuntimeError({"detail":"file error" ,"error": str(e)})
 
         return {"data": "file not found"}
+    
+
+    @staticmethod
+    def get_signed_url(file_id, user_id):
+        file = File.objects.filter(id=file_id, author=user_id).first()
+        if file:
+            return {"data": GCSService.generate_signed_url(file.unique_name), "status": status.HTTP_200_OK}
+        return {"data": "file not found", "status":status.HTTP_400_BAD_REQUEST}
