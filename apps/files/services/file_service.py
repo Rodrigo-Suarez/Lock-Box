@@ -67,6 +67,7 @@ class FileService():
                 GCSService.upload(file_db.unique_name, file) #Guardar en GCS
                 with transaction.atomic():
                     file_db.version += 1
+                    file_db.size = file.size
                     file_db.save()
                     file_instance = serializer.save() #Guardar en la base de datos
                     return {"data": FileHistorySerializer(file_instance).data, "status": status.HTTP_201_CREATED}

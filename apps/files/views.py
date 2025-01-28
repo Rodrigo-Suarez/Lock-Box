@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from .services.file_service import FileService
 from .services.folder_service import FolderService
+from .services.history_service import FileHistoryService
 from .models import File, Folder
 from .serializers import FileSerializer, FolderSerializer
 
 
 
 class RootView(APIView):
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         try:
             folders = FolderService.get_root_folders(request.user.id)
             files = FileService.get_root_files(request.user.id)
@@ -25,12 +26,7 @@ class FileViewSet(ModelViewSet):
     queryset = File.objects.all()
     serializer_class = FileSerializer
 
-    def retrieve(self, request, pk):
-        response = FileService.get_signed_url(pk, request.user.id)
-        return Response(response["data"], response["status"])
-        
-
-    def create(self, request, *args, **kwargs):
+    def create(self, request):
         file = request.FILES['file'] 
 
         if not file:
@@ -46,6 +42,10 @@ class FileViewSet(ModelViewSet):
 
         return Response(response["data"], response["status"])
 
+
+    def retrieve(self, request, pk):
+        response = FileService.get_signed_url(pk, request.user.id)
+        return Response(response["data"], response["status"])
 
     
     def partial_update(self, request, pk):
@@ -70,7 +70,7 @@ class FolderViewSet(ModelViewSet):
     queryset = Folder.objects.all()
     serializer_class = FolderSerializer
 
-    def create(self, request, *args, **kwargs):  
+    def create(self, request):  
         response = FolderService.create_folder(
             name = request.data.get("name", "new_folder"),
             user_id = request.user.id,
@@ -101,4 +101,20 @@ class FolderViewSet(ModelViewSet):
             response.append(updated_folder_parent["data"])
 
         return Response(response, status.HTTP_201_CREATED)
-        
+    
+
+class FileVersionsView(APIView):
+    def get(self, request, pk):
+        response = FileHistoryService.get_versions(pk, request.user.id) 
+        return Response(response["data"], response["status"])
+
+
+class RestoreFileVersionView(APIView):
+    def post(self, request):
+        response = FileHistoryService.restore_version(
+            file_id = request.data.get("file_id"),
+            user_id = request.user.id,
+            version_id = request.data.get("version_id")
+        )
+
+        return Response(response["data"], response["status"])

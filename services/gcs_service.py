@@ -58,3 +58,14 @@ class GCSService:
     
         except Exception as e:
             raise RuntimeError(f"Failed to generate url to GCS: {str(e)}")
+        
+    @staticmethod
+    def duplicate(unique_name, new_unique_name):
+        try:
+            client = storage.Client(credentials=settings.GS_CREDENTIALS)
+            bucket = client.bucket(settings.GS_BUCKET_NAME)
+            blob = bucket.blob(unique_name)
+            bucket.copy_blob(blob, bucket, new_unique_name)
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to duplicate to GCS: {str(e)}")
