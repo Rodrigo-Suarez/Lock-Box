@@ -113,3 +113,23 @@ class FileHistory(models.Model):
     def __str__(self):
         return f"{self.file.name} V{self.history_version}"
     
+
+
+class History(models.Model):
+    ACTION_CHOICES = [
+        ('UPLOADED', 'Uploaded'),
+        ('EDITED', 'Edited'),
+        ('DELETED', 'Deleted'),
+        ('RESTORED', 'Restored'),
+    ]
+
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    description = models.CharField(max_length=100)
+    author = models.ForeignKey(User, related_name="actions", on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
+    file = models.ForeignKey(File, related_name="actions", on_delete=models.CASCADE)
+    folder = models.ForeignKey(Folder, related_name="actions", on_delete=models.CASCADE)
+    file_history = models.ForeignKey(FileHistory, related_name="actions", on_delete=models.CASCADE)
+
+
+    
