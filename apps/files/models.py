@@ -118,6 +118,7 @@ class FileHistory(models.Model):
 class History(models.Model):
     ACTION_CHOICES = [
         ('UPLOADED', 'Uploaded'),
+        ('CREATED', 'Created'),
         ('EDITED', 'Edited'),
         ('DELETED', 'Deleted'),
         ('RESTORED', 'Restored'),
