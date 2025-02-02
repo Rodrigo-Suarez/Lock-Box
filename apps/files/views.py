@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from .services.file_service import FileService
 from .services.folder_service import FolderService
-from .services.history_service import FileHistoryService
+from .services.file_history_service import FileHistoryService
+from .services.history_service import HistoryService
 from .models import File, Folder
 from .serializers import FileSerializer, FolderSerializer
 
@@ -117,4 +118,22 @@ class RestoreFileVersionView(APIView):
             version_id = request.data.get("version_id")
         )
 
+        return Response(response["data"], response["status"])
+    
+
+class HistoryView(APIView):
+    def get(self, request):
+        response = HistoryService.get_user_history(request.user.id)
+        return Response(response["data"], response["status"])
+    
+
+class FileHistoryView(APIView):
+    def get(self, request, pk):
+        response = HistoryService.get_file_history(pk, request.user.id)
+        return Response(response["data"], response["status"])
+
+
+class FolderHistoryView(APIView):
+    def get(self, request, pk):
+        response = HistoryService.get_folder_history(pk, request.user.id)
         return Response(response["data"], response["status"])

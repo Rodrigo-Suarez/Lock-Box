@@ -1,53 +1,56 @@
-from apps.files.models import FileHistory, File
-from apps.files.serializers import FileHistorySerializer
+from apps.files.models import History, File, Folder
+from apps.files.serializers import HistorySerializer
 from rest_framework import status
-from apps.files.utils.data import generate_history_data
-from services.gcs_service import GCSService
-from django.db import transaction
-from apps.files.signals import restored_file
 
-
-class FileHistoryService:
+class HistoryService:
     @staticmethod
-    def get_versions(file_id, user_id):
-        file = File.objects.filter(id=file_id, author=user_id).first()
-        if file:
-            history = file.history.all()
-            serializer = FileHistorySerializer(history, many=True)
-            return {"data": serializer.data, "status": status.HTTP_200_OK}
-
-        return {"data": "File not found", "status": status.HTTP_404_NOT_FOUND}
+    def get_user_history(user_id):
+        history = History.objects.filter(author=user_id).all()
+        if history:
+            try:
+                serializer = HistorySerializer(history, many=True)
+                return {"data": serializer.data, "status": status.HTTP_200_OK}
+            
+            except Exception as e:
+                raise RuntimeError({"detail":"Something went wrong" ,"error": str(e)})
+            
+        return {"data": "Still no changes"}
     
 
     @staticmethod
-    def restore_version(file_id, user_id, version_id):
-        file = File.objects.filter(id=int(file_id), author=user_id).first()
-        if file:
-            old_version = FileHistory.objects.filter(id=int(version_id), file=file.id, history_author=user_id).first()
-            if old_version:
-                unique_filename = FileHistory.generate_unique_name(user_id, file.name, file.version, file.folder)
-                data = generate_history_data(file, unique_filename, user_id)
-                serializer = FileHistorySerializer(data=data)
-                if serializer.is_valid():
-                    try:
-                        GCSService.rename(file.unique_name, unique_filename)
-                        GCSService.duplicate(old_version.history_unique_name, file.unique_name)
-                        with transaction.atomic():
-                            file.size = old_version.history_size
-                            file.version += 1
-                            file._restoring = True
-                            restored_file.send(sender=File, instance=file, old_version=old_version.history_version)
-                            file.save()
-                            file._restoring = False
-                            file_instance = serializer.save() #Guardar en la base de datos
-                            return {"data": FileHistorySerializer(file_instance).data, "status": status.HTTP_201_CREATED}
-                        
-                    except Exception as e:
-                        GCSService.delete(unique_filename)
-                        raise RuntimeError({"detail": "Failed to upload to GCS or save in database", "error": str(e)})
+    def get_file_history(file_id, user_id):
+        file = File.objects.filter(id=file_id, author=user_id).first()
 
-                return {"data": serializer.errors, "status":status.HTTP_400_BAD_REQUEST}
+        if file:    
+            history = file.actions.all()
+            if history:
+                try:
+                    serializer = HistorySerializer(history, many=True)
+                    return {"data": serializer.data, "status": status.HTTP_200_OK}
+                
+                except Exception as e:
+                    raise RuntimeError({"detail":"Something went wrong" ,"error": str(e)})
+                
+            return {"data": "Still no changes", "status": status.HTTP_404_NOT_FOUND}
+        
+        return {"data": "file not found", "status": status.HTTP_404_NOT_FOUND}
+    
 
-            return {"data": "Version not found", "status": status.HTTP_404_NOT_FOUND}
+    @staticmethod
+    def get_folder_history(folder_id, user_id):
+        folder = Folder.objects.filter(id=folder_id, author=user_id).first()
 
-        return {"data": "File not found", "status": status.HTTP_404_NOT_FOUND}
+        if folder:
+            history = folder.actions.all()
+            if history:
+                try:
+                    serializer = HistorySerializer(history, many=True)
+                    return {"data": serializer.data, "status": status.HTTP_200_OK}
+                
+                except Exception as e:
+                    raise RuntimeError({"detail":"Something went wrong" ,"error": str(e)})
+                
+            return {"data": "Still no changes", "status": status.HTTP_404_NOT_FOUND}
+        
+        return {"data": "folder not found", "status": status.HTTP_404_NOT_FOUND}
+        

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Folder, File, FileHistory
+from .models import Folder, File, FileHistory, History
 from django.contrib.auth.models import User
 
 
@@ -34,3 +34,8 @@ class FileHistorySerializer(serializers.ModelSerializer):
         model = FileHistory
         fields = '__all__'
 
+
+class HistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = History
+        fields = '__all__'
