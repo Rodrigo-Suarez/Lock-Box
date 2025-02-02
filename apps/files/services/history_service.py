@@ -4,6 +4,7 @@ from rest_framework import status
 from apps.files.utils.data import generate_history_data
 from services.gcs_service import GCSService
 from django.db import transaction
+from apps.files.signals import restored_file
 
 
 class FileHistoryService:
@@ -34,7 +35,10 @@ class FileHistoryService:
                         with transaction.atomic():
                             file.size = old_version.history_size
                             file.version += 1
+                            file._restoring = True
+                            restored_file.send(sender=File, instance=file, old_version=old_version.history_version)
                             file.save()
+                            file._restoring = False
                             file_instance = serializer.save() #Guardar en la base de datos
                             return {"data": FileHistorySerializer(file_instance).data, "status": status.HTTP_201_CREATED}
                         
