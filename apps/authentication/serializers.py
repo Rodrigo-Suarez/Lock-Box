@@ -14,12 +14,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 
     def validate_username(self, value):
-        if User.objects.filter(username=value):
+        if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("The username already exists")
         return value
 
     def validate_email(self, value):
-        if User.objects.filter(email=value):
+        if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("The username already exists")
         return value
 
@@ -34,3 +34,13 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, data):
         user = User.objects.create_user(**data)
         return user
+    
+
+
+class ResetPasswordRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True)
+    token = serializers.CharField(write_only=True)
