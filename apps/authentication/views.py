@@ -39,25 +39,17 @@ class ResetPasswordRequestView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = ResetPasswordRequestSerializer(data=request.data)
+        backend_url = f"{request.scheme}://{request.get_host()}"  # Obtiene el dominio del backend
+        response = UserService.reset_password_request(request.data.get("email"), backend_url)
 
-        if serializer.is_valid():
-            backend_url = f"{request.scheme}://{request.get_host()}"  # Obtiene el dominio del backend
-            response = UserService.reset_password_request(serializer, backend_url)
-
-            return Response(response["data"], response["status"])
+        return Response(response["data"], response["status"])
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, pk, token):
-        serializer = ResetPasswordSerializer(data=request.data)
+        response = UserService.reset_password(request.data.get("new_password"), pk, token)
 
-        if serializer.is_valid():
-            response = UserService.reset_password(serializer, pk)
-
-            return Response(response["data"], response["status"])
-    
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(response["data"], response["status"])

@@ -9,50 +9,58 @@ from rest_framework import status
 
 class UserService:
     @staticmethod
-    def reset_password_request(serializer, backend_url):
-        email = serializer.validated_data['email']
+    def reset_password_request(email, backend_url):
+        data = {"email": email}
+        serializer = ResetPasswordRequestSerializer(data=data)
 
-        try:
-            user = User.objects.get(email=email)
-            token = default_token_generator.make_token(user)
-            reset_url = f"{backend_url}/login/reset_password/{user.pk}/{token}"
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
 
-            send_mail(
-                "Restablecer tu contraseña",
-                f"Haz clic en el siguiente enlace para restablecer tu contraseña: {reset_url}",
-                settings.EMAIL_HOST_USER,
-                [email],
-            )
+            try:
+                user = User.objects.get(email=email)
+                token = default_token_generator.make_token(user)
+                reset_url = f"{backend_url}/login/reset_password/{user.pk}/{token}"
 
-            return {"data": "Se ha enviado un enlace para restablecer tu contraseña.", "status": status.HTTP_200_OK}
+                send_mail(
+                    "Restablecer tu contraseña",
+                    f"Haz clic en el siguiente enlace para restablecer tu contraseña: {reset_url}",
+                    settings.EMAIL_HOST_USER,
+                    [email],
+                )
+
+                return {"data": "Se ha enviado un enlace para restablecer tu contraseña.", "status": status.HTTP_200_OK}
+                
+            except User.DoesNotExist:
+                return {"data": "El email no está registrado.", "status": status.HTTP_400_BAD_REQUEST}
             
-        except User.DoesNotExist:
-            return {"data": "El email no está registrado.", "status": status.HTTP_400_BAD_REQUEST}
+        return {"data": serializer.errors, "status": status.HTTP_400_BAD_REQUEST}
             
         
     
 
     @staticmethod
-    def reset_password(serializer, user_id):
+    def reset_password(new_password, user_id, token):
+        data = {"new_password": new_password, "token": token}
+        serializer = ResetPasswordSerializer(data=data)
 
-        new_password = serializer.validated_data['new_password']
-        token_from_request = serializer.validated_data['token']
-            
-        try:
-            user = User.objects.get(pk=user_id)
-            if not default_token_generator.check_token(user, token_from_request):
-                raise ValidationError("El token es inválido o ha expirado.")
+        if serializer.is_valid():
+            try:
+                user = User.objects.get(pk=user_id)
+                if not default_token_generator.check_token(user, token):
+                    raise ValidationError("El token es inválido o ha expirado.")
+                    
+                user.set_password(new_password)
+                user.save()
+
+                return {"data": "Contraseña restablecida con éxito.", "status": status.HTTP_200_OK}
                 
-            user.set_password(new_password)
-            user.save()
-
-            return {"data": "Contraseña restablecida con éxito.", "status": status.HTTP_200_OK}
+            except User.DoesNotExist:
+                return {"data": "Usuario no encontrado.", "status": status.HTTP_404_NOT_FOUND}
+                
+            except ValidationError as e:
+                return {"data": str(e), "status": status.HTTP_400_BAD_REQUEST}
             
-        except User.DoesNotExist:
-            return {"data": "Usuario no encontrado.", "status": status.HTTP_404_NOT_FOUND}
-            
-        except ValidationError as e:
-            return {"data": str(e), "status": status.HTTP_400_BAD_REQUEST}
-            
+        return {"data": serializer.errors, "status": status.HTTP_400_BAD_REQUEST}
+                
         
 
