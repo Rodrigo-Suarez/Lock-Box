@@ -36,16 +36,20 @@ class FolderService():
 
     @staticmethod
     def get_folder(folder_id, user_id):
-        try:
-            folders = Folder.objects.filter(parent_folder=folder_id, author=user_id)
-            files = File.objects.filter(folder=folder_id, author=user_id)
-            folders_serializer = FolderSerializer(folders, many=True)
-            files_serializer = FileSerializer(files, many=True)
-            return {"data": folders_serializer.data + files_serializer.data, "status": status.HTTP_200_OK}
+        folder = Folder.objects.filter(id=folder_id, author=user_id).first()
+        if folder:
+            try:
+                folders = Folder.objects.filter(parent_folder=folder_id, author=user_id)
+                files = File.objects.filter(folder=folder_id, author=user_id)
+                folders_serializer = FolderSerializer(folders, many=True)
+                files_serializer = FileSerializer(files, many=True)
+                return {"data": folders_serializer.data + files_serializer.data, "status": status.HTTP_200_OK}
 
-        except Exception as e:
-            raise RuntimeError({"detail":"folder error" ,"error": str(e)})
-        
+            except Exception as e:
+                raise RuntimeError({"detail":"folder error" ,"error": str(e)})
+            
+        return {"data": "folder not found", "status": status.HTTP_404_NOT_FOUND}
+
 
 
     @staticmethod
@@ -116,7 +120,7 @@ class FolderService():
 
                 if not new_parent:
                     return {"data": "folder not found"}
-                if folder.id == new_parent:
+                if folder.id == new_parent.id:
                     return {"data": "choose another location"}
                 
                 subfolder_ids = FolderService.get_subfolder_ids(folder)

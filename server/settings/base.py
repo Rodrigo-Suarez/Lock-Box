@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'storages',
+    'drf_spectacular',
 ]
 
 PROJECT_APPS = [
@@ -69,8 +70,16 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.JSONParser',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LockBox API',
+    'DESCRIPTION': 'Documentación de la API de LockBox',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 
 MIDDLEWARE = [

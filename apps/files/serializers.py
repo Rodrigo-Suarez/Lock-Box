@@ -39,3 +39,7 @@ class HistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = History
         fields = '__all__'
+
+
+class FileErrorSerializer(serializers.Serializer):
+    detail = serializers.CharField()

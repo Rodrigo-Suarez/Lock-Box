@@ -52,7 +52,7 @@ class UserService:
                 user.set_password(new_password)
                 user.save()
 
-                return {"data": "Contraseña restablecida con éxito.", "status": status.HTTP_200_OK}
+                return {"data": "Contraseña restablecida con éxito.", "status": status.HTTP_201_CREATED}
                 
             except User.DoesNotExist:
                 return {"data": "Usuario no encontrado.", "status": status.HTTP_404_NOT_FOUND}
